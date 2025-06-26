@@ -554,6 +554,10 @@ if __name__ == "__main__":
             time.sleep(600)  # Pausar por 600 segundos            
             print(f'H - Intensiva D \nst.rerun()\n')
             st.rerun()
+
+
+
+            
         
     except Exception as err: 
         print(f"Inexperado {err=}, {type(err)=}")

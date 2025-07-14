@@ -360,7 +360,7 @@ if __name__ == "__main__":
                 "RASS": st.column_config.TextColumn("RASS", width="small"),
                 "SAPSIII": st.column_config.TextColumn("SAPS III", width="small"),
                 "BRADEN": st.column_config.TextColumn("BRADEN", width="small"),
-                "MORSE": st.column_config.TextColumn("MORSE", width="small"),
+                "MORSE": st.column_config.TextColumn("MORSE"),
                 "MARTINS": st.column_config.TextColumn("MARTINS"),
                 "PRECAUCAO": st.column_config.TextColumn("PRECAUÇÃO", width="small"),
                 "GRUPOS_PACIENTE": st.column_config.TextColumn("GRUPOS", width="small"),

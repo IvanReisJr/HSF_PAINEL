@@ -21,7 +21,7 @@ import locale
 import datetime
 
 #Configurando pagina para exibicao em modo WIDE:
-st.set_page_config(layout="wide",initial_sidebar_state="collapsed",page_title="H - Intensiva D ")
+st.set_page_config(layout="wide",initial_sidebar_state="collapsed",page_title="PAI - U.I 2º ANDAR - ADOLESCENTE ")
 
 def agora():
     agora = datetime.datetime.now()

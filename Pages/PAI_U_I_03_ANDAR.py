@@ -21,7 +21,7 @@ import locale
 import datetime
 
 #Configurando pagina para exibicao em modo WIDE:
-st.set_page_config(layout="wide",initial_sidebar_state="collapsed",page_title="H - Intensiva D ")
+st.set_page_config(layout="wide",initial_sidebar_state="collapsed",page_title="PAI - U.I. 3º ANDAR ")
 
 def agora():
     agora = datetime.datetime.now()
@@ -397,45 +397,7 @@ if __name__ == "__main__":
             st.write('\n\n\n')
             st.write('___________________')
 
-        """            
-                with st.sidebar:
-                st.write('# Indicadores:')
-                BRADEN = df[['BRADEN']].shape[0]
-                BRADEN = df[df['BRADEN'] != '-']
-                BRADEN = len(BRADEN)
-                #print(f'BRADEN: {BRADEN}')
-                st.write(f'Braden: {BRADEN}')
-                MARTINS = df[['MARTINS']].shape[0]
-                MARTINS = df[df['MARTINS'] != '-']
-                MARTINS = len(MARTINS)
-                #print(f'MARTINS: {MARTINS}')
-                st.write(f'MARTINS: {MARTINS}')
-                GLASGOW = df[['GLASGOW']].shape[0]
-                GLASGOW = df[df['GLASGOW'] != '-']
-                GLASGOW = len(GLASGOW)
-                #print(f'GLASGOW: {GLASGOW}')
-                st.write(f'Glasgow: {GLASGOW}') 
-                RASS = df[['RASS']].shape[0]
-                RASS = df[df['RASS'] != '-']
-                RASS = len(RASS)
-                #print(f'RASS: {RASS}')
-                st.write(f'RASS: {RASS}')                                 
-                SAPSIII = df[['SAPSIII']].shape[0]
-                SAPSIII = df[df['SAPSIII'] != '-']
-                SAPSIII = len(SAPSIII)
-                #print(f'SAPSIII: {SAPSIII}')
-                st.write(f'Saps3: {SAPSIII}')                
-                MORSE = df[['MORSE']].shape[0]
-                MORSE = df[df['MORSE'] != '-']
-                MORSE = len(MORSE)
-                #print(f'MORSE: {MORSE}')
-                st.write(f'Morse: {MORSE}')
-                PRECAUCAO = df[['PRECAUCAO']].shape[0]
-                PRECAUCAO = df[df['PRECAUCAO'] != '-']
-                PRECAUCAO = len(PRECAUCAO)
-                #print(f'PRECAUCAO: {PRECAUCAO}')
-                st.write(f'Precaução: {PRECAUCAO}') 
-        """
+ 
 
         print(f'{agora()} - Pausar por 600 segundos!')
             

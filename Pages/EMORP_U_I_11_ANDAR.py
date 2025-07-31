@@ -294,7 +294,16 @@ def pacientes_escalas():
                                 WHERE 1 = 1
                                 AND NR_ATENDIMENTO = APV.NR_ATENDIMENTO
                                 FETCH FIRST 1 ROWS ONLY
-                            ) GPT_STATUS
+                            ) GPT_STATUS,
+                            CASE
+                                WHEN EXISTS (SELECT 1 FROM CPOE_REVALIDATION_EVENTS_V SUB_V
+                                            WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
+                                            AND  SUB_V.IE_TIPO_ITEM = 'M'
+                                            AND SUB_V.DT_ATUALIZACAO IS NOT NULL
+                                            --AND SUB_V.DT_ATUALIZACAO <= PH.DT_HORARIO
+                                            ) THEN 'Sim'
+                                ELSE '-'
+                            END AS REVALIDADO
 
                         FROM ATENDIMENTO_PACIENTE_V APV
                         LEFT JOIN prescr_medica PM ON (  PM.NR_ATENDIMENTO = APV.NR_ATENDIMENTO )
@@ -405,7 +414,7 @@ if __name__ == "__main__":
             )
             
             # SELECIONA AS COLUNAS ANTES DE ESTILIZAR
-            colunas_selecionadas = ['LEITO', 'ATENDIMENTO','PACIENTE','MEWS','BRADEN','MORSE','FUGULIN','PRECAUCAO', 'GRUPOS_PACIENTE', 'ALERGIA' , 'GPT_STATUS']
+            colunas_selecionadas = ['LEITO', 'ATENDIMENTO','PACIENTE','MEWS','BRADEN','MORSE','FUGULIN','PRECAUCAO', 'GRUPOS_PACIENTE', 'ALERGIA' , 'GPT_STATUS','REVALIDADO']
             df_selecionado = df[colunas_selecionadas]
     
             # APLICA O ESTILO APENAS AO DATAFRAME SELECIONADO

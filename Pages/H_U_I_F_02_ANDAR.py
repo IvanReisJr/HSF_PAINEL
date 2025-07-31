@@ -340,7 +340,16 @@ def pacientes_escalas():
                                 WHERE 1 = 1
                                 AND NR_ATENDIMENTO = APV.NR_ATENDIMENTO
                                 FETCH FIRST 1 ROWS ONLY
-                            ) GPT_STATUS
+                            ) GPT_STATUS,
+                            CASE
+                                WHEN EXISTS (SELECT 1 FROM CPOE_REVALIDATION_EVENTS_V SUB_V
+                                            WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
+                                            AND  SUB_V.IE_TIPO_ITEM = 'M'
+                                            AND SUB_V.DT_ATUALIZACAO IS NOT NULL
+                                            --AND SUB_V.DT_ATUALIZACAO <= PH.DT_HORARIO
+                                            ) THEN 'Sim'
+                                ELSE '-'
+                            END AS REV_EXISTE_REGISTRO
 
                         FROM ATENDIMENTO_PACIENTE_V APV
                         LEFT JOIN prescr_medica PM ON (  PM.NR_ATENDIMENTO = APV.NR_ATENDIMENTO )
@@ -457,7 +466,7 @@ if __name__ == "__main__":
             
             # SELECIONA AS COLUNAS ANTES DE ESTILIZAR
             #colunas_selecionadas = ['LEITO', 'ATENDIMENTO','PACIENTE','GLASGOW','BRADEN','MORSE','FUGULIN','PRECAUCAO', 'GRUPOS_PACIENTE', 'ALERGIA' , 'GPT_STATUS']
-            colunas_selecionadas = ['LEITO', 'ATENDIMENTO','PACIENTE','GLASGOW','RASS','SAPSIII','BRADEN','MORSE','FUGULIN','PRECAUCAO', 'GRUPOS_PACIENTE', 'ALERGIA' , 'GPT_STATUS']
+            colunas_selecionadas = ['LEITO', 'ATENDIMENTO','PACIENTE','GLASGOW','RASS','SAPSIII','BRADEN','MORSE','FUGULIN','PRECAUCAO', 'GRUPOS_PACIENTE', 'ALERGIA' , 'GPT_STATUS','REV_EXISTE_REGISTRO']
             df_selecionado = df[colunas_selecionadas]
     
             # Define a configuração de largura para cada coluna para garantir consistência
@@ -465,16 +474,17 @@ if __name__ == "__main__":
                 "LEITO": st.column_config.TextColumn("LEITO", width="small"),
                 "ATENDIMENTO": st.column_config.TextColumn("ATEND", width="small"),
                 "PACIENTE": st.column_config.TextColumn("PACIENTE", width="small"),
-                "GLASGOW": st.column_config.TextColumn("GLASGOW", width=225),
+                "GLASGOW": st.column_config.TextColumn("GLASGOW", width=200),
                 "RASS": st.column_config.TextColumn("RASS", width=180),
                 "SAPSIII": st.column_config.TextColumn("SAPS III", width="small"),
-                "BRADEN": st.column_config.TextColumn("BRADEN", width=150),
+                "BRADEN": st.column_config.TextColumn("BRADEN", width=120),
                 "MORSE": st.column_config.TextColumn("MORSE", width="small"),
                 "FUGULIN": st.column_config.TextColumn("FUGULIN", width=150),
                 "PRECAUCAO": st.column_config.TextColumn("PRECAUÇÃO", width=150),
                 "GRUPOS_PACIENTE": st.column_config.TextColumn("GRUPOS", width="small"),
                 "ALERGIA": st.column_config.TextColumn("ALERGIA", width="small"),
                 "GPT_STATUS": st.column_config.TextColumn("GPT_STATUS", width="small"),
+                "REV_EXISTE_REGISTRO": st.column_config.TextColumn("REVALIDADO", width="small"),
             }
             
             # APLICA O ESTILO APENAS AO DATAFRAME SELECIONADO

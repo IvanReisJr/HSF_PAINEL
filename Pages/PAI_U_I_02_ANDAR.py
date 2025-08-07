@@ -229,7 +229,37 @@ def pacientes_escalas():
                             WHERE 1 = 1
                             AND NR_ATENDIMENTO = APV.NR_ATENDIMENTO
                             FETCH FIRST 1 ROWS ONLY
-                        ) GPT_STATUS
+                        ) GPT_STATUS,
+                        (CASE
+                              WHEN (SELECT COUNT(*)
+                                      FROM CPOE_REVALIDATION_EVENTS_V
+                                      WHERE NR_ATENDIMENTO = APV.NR_ATENDIMENTO) = 0 THEN 'sem revalidação'
+                              
+                              WHEN (SELECT SUB_V.DT_ATUALIZACAO_NREC
+                                      FROM CPOE_REVALIDATION_EVENTS_V SUB_V
+                                      WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
+                                      AND SUB_V.NR_SEQUENCIA =
+                                          (SELECT MAX(AUX.NR_SEQUENCIA)
+                                              FROM CPOE_REVALIDATION_EVENTS_V AUX
+                                              WHERE AUX.NR_ATENDIMENTO = SUB_V.NR_ATENDIMENTO)) >= TRUNC(SYSDATE) AND
+                                  (SELECT SUB_V.DT_ATUALIZACAO_NREC
+                                      FROM CPOE_REVALIDATION_EVENTS_V SUB_V
+                                      WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
+                                      AND SUB_V.NR_SEQUENCIA =
+                                          (SELECT MAX(AUX.NR_SEQUENCIA)
+                                              FROM CPOE_REVALIDATION_EVENTS_V AUX
+                                              WHERE AUX.NR_ATENDIMENTO = SUB_V.NR_ATENDIMENTO)) < TRUNC(SYSDATE) + 13/24 THEN 'Antes das 13:00'
+                              
+                              WHEN (SELECT SUB_V.DT_ATUALIZACAO_NREC
+                                      FROM CPOE_REVALIDATION_EVENTS_V SUB_V
+                                      WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
+                                      AND SUB_V.NR_SEQUENCIA =
+                                          (SELECT MAX(AUX.NR_SEQUENCIA)
+                                              FROM CPOE_REVALIDATION_EVENTS_V AUX
+                                              WHERE AUX.NR_ATENDIMENTO = SUB_V.NR_ATENDIMENTO)) >= TRUNC(SYSDATE) + 13/24 THEN 'Após as 13:00'
+                              ELSE
+                              'Aguardando'
+                          END) AS REVALIDADO
 
                         FROM ATENDIMENTO_PACIENTE_V APV
                         LEFT JOIN PRESCR_MEDICA PM
@@ -319,7 +349,15 @@ def cor_cdrass(val):
     except ValueError:
         return ''  # Caso não seja um número
 
-        
+def cor_revalidado(val):
+    """Aplica cor de fundo à célula REVALIDADO com base no status."""
+    if val == 'Antes das 13:00':
+        return 'background-color: #90EE90; color: black; font-weight: bold'  # Verde claro
+    elif val == 'Após as 13:00':
+        return 'background-color: #F08080; color: black; font-weight: bold'  # Vermelho claro (lightcoral)
+    elif val == 'Aguardando':
+        return 'background-color: #F08080; color: black; font-weight: bold'  # Vermelho claro (lightcoral)
+    return ''       
         
 logo_path = 'HSF_LOGO_-_1228x949_001.png'
 
@@ -348,7 +386,7 @@ if __name__ == "__main__":
             
             # SELECIONA AS COLUNAS ANTES DE ESTILIZAR
             #colunas_selecionadas = ['LEITO', 'ATENDIMENTO','PACIENTE','GLASGOW','BRADEN','MORSE','MARTINS','PRECAUCAO', 'GRUPOS_PACIENTE', 'ALERGIA' , 'GPT_STATUS']
-            colunas_selecionadas = ['LEITO', 'ATENDIMENTO','PACIENTE','GLASGOW','RASS','SAPSIII','BRADEN','MORSE','MARTINS','PRECAUCAO', 'GRUPOS_PACIENTE', 'ALERGIA' , 'GPT_STATUS']
+            colunas_selecionadas = ['LEITO', 'ATENDIMENTO','PACIENTE','GLASGOW','RASS','SAPSIII','BRADEN','MORSE','MARTINS','PRECAUCAO', 'GRUPOS_PACIENTE', 'ALERGIA' , 'GPT_STATUS','REVALIDADO']
             df_selecionado = df[colunas_selecionadas]
 
              # Define a configuração de largura para cada coluna para garantir consistência
@@ -365,7 +403,8 @@ if __name__ == "__main__":
                 "PRECAUCAO": st.column_config.TextColumn("PRECAUÇÃO", width="small"),
                 "GRUPOS_PACIENTE": st.column_config.TextColumn("GRUPOS", width="small"),
                 "ALERGIA": st.column_config.TextColumn("ALERGIA", width="small"),
-                "GPT_STATUS": st.column_config.TextColumn("GPT_STATUS", width="small"),
+                "GPT_STATUS": st.column_config.TextColumn("GPT_STATUS", width=90),
+                "REVALIDADO": st.column_config.TextColumn("REVALIDADO", width=110),
             }
     
             # APLICA O ESTILO APENAS AO DATAFRAME SELECIONADO
@@ -382,6 +421,7 @@ if __name__ == "__main__":
                 df_styled = df_selecionado.style\
                 .applymap(cor_status, subset=['GPT_STATUS'])\
                 .applymap(cor_status, subset=['ALERGIA'])\
+                .map(cor_revalidado, subset=['REVALIDADO'])\
                 .apply(lambda row: pd.Series({'RASS': cor_cdrass(df.loc[row.name, 'CD_RASS'])}), axis=1)
             
             st.write("# PAI - U.I. 2º ANDAR")

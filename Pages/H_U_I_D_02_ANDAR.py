@@ -1,4 +1,4 @@
-#AND APV.CD_SETOR_ATENDIMENTO = 61
+#AND APV.CD_SETOR_ATENDIMENTO = 60
 # H - Intensiva D 2º ANDAR
 '''
 58	H - Intensiva A
@@ -15,6 +15,7 @@ import pandas as pd
 import numpy as np
 import os
 import oracledb
+import pandas as pd
 import time
 import plotly.graph_objects as go
 import locale
@@ -142,7 +143,7 @@ def pacientes_escalas():
                                 AND SAPS3.IE_SITUACAO = 'A'
                                 order by	1 desc
                                 FETCH FIRST 1 ROWS ONLY
-                            ) AS SAPSIII,    
+                            ) AS SAPSIII,
 
                             --RASS
                             (
@@ -158,7 +159,7 @@ def pacientes_escalas():
                                   AND nr_atendimento = APV.NR_ATENDIMENTO
                                   AND obter_se_reg_lib_atencao(obter_pessoa_atendimento(nr_atendimento, 'C'),cd_profissional,ie_nivel_atencao,nm_usuario,374) = 'S'
                                 FETCH FIRST 1 ROWS ONLY
-                            ) RASS,                            
+                            ) RASS,
 
                             --CD_RASS
                             (
@@ -170,7 +171,7 @@ def pacientes_escalas():
                                   AND obter_se_reg_lib_atencao(obter_pessoa_atendimento(nr_atendimento, 'C'),cd_profissional,ie_nivel_atencao,nm_usuario,374) = 'S'
                                 FETCH FIRST 1 ROWS ONLY
                             ) CD_RASS, 
-                            
+
                             --fugulin
                             (
                                 SELECT 
@@ -338,16 +339,37 @@ def pacientes_escalas():
                                 WHERE 1 = 1
                                 AND NR_ATENDIMENTO = APV.NR_ATENDIMENTO
                                 FETCH FIRST 1 ROWS ONLY
-                            ) GPT_STATUS,
-                            CASE
-                                WHEN EXISTS (SELECT 1 FROM CPOE_REVALIDATION_EVENTS_V SUB_V
-                                            WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
-                                            AND  SUB_V.IE_TIPO_ITEM = 'M'
-                                            AND SUB_V.DT_ATUALIZACAO IS NOT NULL
-                                            --AND SUB_V.DT_ATUALIZACAO <= PH.DT_HORARIO
-                                            ) THEN 'Sim'
-                                ELSE '-'
-                            END AS REV_EXISTE_REGISTRO
+                            ) GPT_STATUS,                            
+							(CASE
+                              WHEN (SELECT COUNT(*)
+                                      FROM CPOE_REVALIDATION_EVENTS_V
+                                      WHERE NR_ATENDIMENTO = APV.NR_ATENDIMENTO) = 0 THEN 'sem revalidação'
+                              
+                              WHEN (SELECT SUB_V.DT_ATUALIZACAO_NREC
+                                      FROM CPOE_REVALIDATION_EVENTS_V SUB_V
+                                      WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
+                                      AND SUB_V.NR_SEQUENCIA =
+                                          (SELECT MAX(AUX.NR_SEQUENCIA)
+                                              FROM CPOE_REVALIDATION_EVENTS_V AUX
+                                              WHERE AUX.NR_ATENDIMENTO = SUB_V.NR_ATENDIMENTO)) >= TRUNC(SYSDATE) AND
+                                  (SELECT SUB_V.DT_ATUALIZACAO_NREC
+                                      FROM CPOE_REVALIDATION_EVENTS_V SUB_V
+                                      WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
+                                      AND SUB_V.NR_SEQUENCIA =
+                                          (SELECT MAX(AUX.NR_SEQUENCIA)
+                                              FROM CPOE_REVALIDATION_EVENTS_V AUX
+                                              WHERE AUX.NR_ATENDIMENTO = SUB_V.NR_ATENDIMENTO)) < TRUNC(SYSDATE) + 13/24 THEN 'Antes das 13:00'
+                              
+                              WHEN (SELECT SUB_V.DT_ATUALIZACAO_NREC
+                                      FROM CPOE_REVALIDATION_EVENTS_V SUB_V
+                                      WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
+                                      AND SUB_V.NR_SEQUENCIA =
+                                          (SELECT MAX(AUX.NR_SEQUENCIA)
+                                              FROM CPOE_REVALIDATION_EVENTS_V AUX
+                                              WHERE AUX.NR_ATENDIMENTO = SUB_V.NR_ATENDIMENTO)) >= TRUNC(SYSDATE) + 13/24 THEN 'Após as 13:00'
+                              ELSE
+                              'Aguardando'
+                          END) AS REV_EXISTE_REGISTRO
 
                         FROM ATENDIMENTO_PACIENTE_V APV
                         LEFT JOIN prescr_medica PM ON (  PM.NR_ATENDIMENTO = APV.NR_ATENDIMENTO )
@@ -415,7 +437,6 @@ def cor_status(val):
     else:
         return ''
 
-
 def cor_cdrass(val):
     # Aplica cor de fundo à célula RASS com base no valor, com cores suavizadas.
     try:
@@ -437,8 +458,16 @@ def cor_cdrass(val):
     except ValueError:
         return ''  # Caso não seja um número
 
-        
-        
+def cor_revalidado(val):
+    """Aplica cor de fundo à célula REVALIDADO com base no status."""
+    if val == 'Antes das 13:00':
+        return 'background-color: #90EE90; color: black; font-weight: bold'  # Verde claro
+    elif val == 'Após as 13:00':
+        return 'background-color: #F08080; color: black; font-weight: bold'  # Vermelho claro (lightcoral)
+    elif val == 'Aguardando':
+        return 'background-color: #F08080; color: black; font-weight: bold'  # Vermelho claro (lightcoral)
+    return ''
+
 logo_path = 'HSF_LOGO_-_1228x949_001.png'
 
 if __name__ == "__main__":
@@ -465,11 +494,11 @@ if __name__ == "__main__":
             )
             
             # SELECIONA AS COLUNAS ANTES DE ESTILIZAR
-            #colunas_selecionadas = ['LEITO', 'ATENDIMENTO','PACIENTE','GLASGOW','BRADEN','MORSE','FUGULIN','PRECAUCAO', 'GRUPOS_PACIENTE', 'ALERGIA' , 'GPT_STATUS']
+            # colunas_selecionadas = ['LEITO', 'ATENDIMENTO','PACIENTE','GLASGOW','BRADEN','MORSE','FUGULIN','PRECAUCAO', 'GRUPOS_PACIENTE', 'ALERGIA' , 'GPT_STATUS']
             colunas_selecionadas = ['LEITO', 'ATENDIMENTO','PACIENTE','GLASGOW','RASS','SAPSIII','BRADEN','MORSE','FUGULIN','PRECAUCAO', 'GRUPOS_PACIENTE', 'ALERGIA' , 'GPT_STATUS','REV_EXISTE_REGISTRO']
             df_selecionado = df[colunas_selecionadas]
-
-             # Define a configuração de largura para cada coluna para garantir consistência
+            
+            # Define a configuração de largura para cada coluna para garantir consistência
             column_config = {
                 "LEITO": st.column_config.TextColumn("LEITO", width="small"),
                 "ATENDIMENTO": st.column_config.TextColumn("ATEND", width="small"),
@@ -480,58 +509,44 @@ if __name__ == "__main__":
                 "BRADEN": st.column_config.TextColumn("BRADEN", width=120),
                 "MORSE": st.column_config.TextColumn("MORSE", width="small"),
                 "FUGULIN": st.column_config.TextColumn("FUGULIN", width=150),
-                "PRECAUCAO": st.column_config.TextColumn("PRECAUÇÃO", width=150),
+                "PRECAUCAO": st.column_config.TextColumn("PRECAUÇÃO", width=120),
                 "GRUPOS_PACIENTE": st.column_config.TextColumn("GRUPOS", width="small"),
                 "ALERGIA": st.column_config.TextColumn("ALERGIA", width="small"),
-                "GPT_STATUS": st.column_config.TextColumn("GPT_STATUS", width="small"),
-                "REV_EXISTE_REGISTRO": st.column_config.TextColumn("REVALIDADO", width="small"),
+                "GPT_STATUS": st.column_config.TextColumn("GPT_STATUS", width=90),
+                "REV_EXISTE_REGISTRO": st.column_config.TextColumn("REVALIDADO", width=130),
             }
-    
+            
             # APLICA O ESTILO APENAS AO DATAFRAME SELECIONADO
             #df_styled = df_selecionado.style.applymap(cor_status, subset=['GPT_STATUS'])
             
             # APLICA O ESTILO APENAS AO DATAFRAME SELECIONADO
             #df_styled = df_selecionado.style.map(cor_status, subset=['GPT_STATUS'])\
             #                               .map(cor_status, subset=['ALERGIA'])
-            # df_styled = df_selecionado.style\
-            #.applymap(cor_status, subset=['GPT_STATUS'])\
-            #.applymap(cor_status, subset=['ALERGIA'])\
-            #.apply(lambda row: pd.Series({'RASS': cor_cdrass(row['CD_RASS'])}), axis=1)
             if 'CD_RASS' in df.columns:
                 df_styled = df_selecionado.style\
-                .applymap(cor_status, subset=['GPT_STATUS'])\
-                .applymap(cor_status, subset=['ALERGIA'])\
-                .apply(lambda row: pd.Series({'RASS': cor_cdrass(df.loc[row.name, 'CD_RASS'])}), axis=1)
-
-                                 
-                                           
-                                           
-                                          
+                .map(cor_status, subset=['GPT_STATUS'])\
+                .map(cor_status, subset=['ALERGIA'])\
+                .map(cor_revalidado, subset=['REV_EXISTE_REGISTRO'])\
+                .apply(lambda row: pd.Series({'RASS': cor_cdrass(df.loc[row.name, 'CD_RASS'])}), axis=1)                                          
             
             st.write("# H - Intensiva D ")
             st.write(f'Atualizado: {datetime.datetime.now().strftime("%d/%m/%Y as %H:%M:%S")}')
             
-            #Exibindo data frame:
-            #st.dataframe(df_styled,hide_index=True, height= calcular_altura_dataframe(df.shape[0]) ,use_container_width=True)
+            #Exibindo data frame:           
             st.dataframe(df_styled,hide_index=True, height= calcular_altura_dataframe(df.shape[0]) ,use_container_width=True, column_config=column_config)
-            
 
             print(f'{agora()} - Total de: {str(df.shape[0])} pacientes')
             st.write('### Ocupação: ' + str(df.shape[0]) + ' pacientes')
             st.write('\n\n\n')
             st.write('___________________')
 
-
+   
 
             print(f'{agora()} - Pausar por 600 segundos!')
             
             time.sleep(600)  # Pausar por 600 segundos            
             print(f'H - Intensiva D \nst.rerun()\n')
             st.rerun()
-
-
-
-            
         
     except Exception as err: 
         print(f"Inexperado {err=}, {type(err)=}")

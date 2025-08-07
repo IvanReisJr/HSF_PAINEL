@@ -294,15 +294,36 @@ def pacientes_escalas():
                                 AND NR_ATENDIMENTO = APV.NR_ATENDIMENTO
                                 FETCH FIRST 1 ROWS ONLY
                             ) GPT_STATUS,
-                            CASE
-                                WHEN EXISTS (SELECT 1 FROM CPOE_REVALIDATION_EVENTS_V SUB_V
-                                            WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
-                                            AND  SUB_V.IE_TIPO_ITEM = 'M'
-                                            AND SUB_V.DT_ATUALIZACAO IS NOT NULL
-                                            --AND SUB_V.DT_ATUALIZACAO <= PH.DT_HORARIO
-                                            ) THEN 'Sim'
-                                ELSE '-'
-                            END AS REVALIDADO
+                            (CASE
+                              WHEN (SELECT COUNT(*)
+                                      FROM CPOE_REVALIDATION_EVENTS_V
+                                      WHERE NR_ATENDIMENTO = APV.NR_ATENDIMENTO) = 0 THEN 'sem revalidação'
+                              
+                              WHEN (SELECT SUB_V.DT_ATUALIZACAO_NREC
+                                      FROM CPOE_REVALIDATION_EVENTS_V SUB_V
+                                      WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
+                                      AND SUB_V.NR_SEQUENCIA =
+                                          (SELECT MAX(AUX.NR_SEQUENCIA)
+                                              FROM CPOE_REVALIDATION_EVENTS_V AUX
+                                              WHERE AUX.NR_ATENDIMENTO = SUB_V.NR_ATENDIMENTO)) >= TRUNC(SYSDATE) AND
+                                  (SELECT SUB_V.DT_ATUALIZACAO_NREC
+                                      FROM CPOE_REVALIDATION_EVENTS_V SUB_V
+                                      WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
+                                      AND SUB_V.NR_SEQUENCIA =
+                                          (SELECT MAX(AUX.NR_SEQUENCIA)
+                                              FROM CPOE_REVALIDATION_EVENTS_V AUX
+                                              WHERE AUX.NR_ATENDIMENTO = SUB_V.NR_ATENDIMENTO)) < TRUNC(SYSDATE) + 13/24 THEN 'Antes das 13:00'
+                              
+                              WHEN (SELECT SUB_V.DT_ATUALIZACAO_NREC
+                                      FROM CPOE_REVALIDATION_EVENTS_V SUB_V
+                                      WHERE SUB_V.NR_ATENDIMENTO = APV.NR_ATENDIMENTO
+                                      AND SUB_V.NR_SEQUENCIA =
+                                          (SELECT MAX(AUX.NR_SEQUENCIA)
+                                              FROM CPOE_REVALIDATION_EVENTS_V AUX
+                                              WHERE AUX.NR_ATENDIMENTO = SUB_V.NR_ATENDIMENTO)) >= TRUNC(SYSDATE) + 13/24 THEN 'Após as 13:00'
+                              ELSE
+                              'Aguardando'
+                          END) AS REVALIDADO
 
                         FROM ATENDIMENTO_PACIENTE_V APV
                         LEFT JOIN prescr_medica PM ON (  PM.NR_ATENDIMENTO = APV.NR_ATENDIMENTO )
@@ -387,6 +408,16 @@ def cor_mews(val):
     except ValueError:
         return '' # Se o valor não puder ser convertido para float (ex: '-')
 
+def cor_revalidado(val):
+    """Aplica cor de fundo à célula REVALIDADO com base no status."""
+    if val == 'Antes das 13:00':
+        return 'background-color: #90EE90; color: black; font-weight: bold'  # Verde claro
+    elif val == 'Após as 13:00':
+        return 'background-color: #F08080; color: black; font-weight: bold'  # Vermelho claro (lightcoral)
+    elif val == 'Aguardando':
+        return 'background-color: #F08080; color: black; font-weight: bold'  # Vermelho claro (lightcoral)
+    return ''
+
 logo_path = 'HSF_LOGO_-_1228x949_001.png'
 
 if __name__ == "__main__":
@@ -423,6 +454,7 @@ if __name__ == "__main__":
             # APLICA O ESTILO APENAS AO DATAFRAME SELECIONADO (Restaurado)
             df_styled = df_selecionado.style.map(cor_status, subset=['GPT_STATUS'])\
                                            .map(cor_status, subset=['ALERGIA'])\
+                                           .map(cor_revalidado, subset=['REVALIDADO'])\
                                            .map(cor_mews, subset=['MEWS'])
 
             st.write("# EMORP - U.I. 09º ANDAR")
